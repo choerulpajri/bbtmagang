@@ -5,7 +5,6 @@ import {
   UserCircleIcon,
   PencilIcon,
   MagnifyingGlassIcon,
-  ArrowLeftIcon,
   ArrowRightOnRectangleIcon,
   DocumentTextIcon,
   ClockIcon,
@@ -14,6 +13,7 @@ import {
   SparklesIcon,
   ArrowRightIcon,
   XCircleIcon,
+  MapIcon, // ← Untuk alokasi penempatan
 } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
 
@@ -35,12 +35,11 @@ export default function Dashboard() {
     accepted: 0,
     rejected: 0,
   });
-  const [applications, setApplications] = useState<Application[]>([]);
   const [nextAction, setNextAction] = useState<{ title: string; desc: string; action: () => void } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch semua pendaftaran tanpa filter user_id
+      // Ambil semua pendaftaran (tanpa filter user_id)
       const { data: apps, error } = await supabase
         .from("pendaftaran_magang")
         .select("id, status, created_at, nama");
@@ -50,12 +49,10 @@ export default function Dashboard() {
       }
 
       if (apps) {
-        setApplications(apps);
-
-        // Hitung stats (normalisasi status ke lowercase)
-        const pending = apps.filter(a => a.status?.toLowerCase() === "pending").length;
-        const accepted = apps.filter(a => a.status?.toLowerCase() === "accepted").length;
-        const rejected = apps.filter(a => a.status?.toLowerCase() === "rejected").length;
+        // Normalisasi status dan hitung statistik
+        const pending = apps.filter((a) => a.status?.toLowerCase() === "pending").length;
+        const accepted = apps.filter((a) => a.status?.toLowerCase() === "accepted").length;
+        const rejected = apps.filter((a) => a.status?.toLowerCase() === "rejected").length;
 
         setStats({
           total: apps.length,
@@ -192,6 +189,18 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
+        {/* Panduan Penting */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6 text-center max-w-4xl mx-auto shadow-md"
+        >
+          <p className="text-sm md:text-base text-blue-800 font-medium leading-relaxed">
+            🔔 <strong>Harap membaca dahulu menu Alokasi Penempatan</strong> agar mengerti di bidang yang ditempatkan sebelum mendaftar.
+          </p>
+        </motion.div>
+
         {/* Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <DashboardCard
@@ -209,74 +218,13 @@ export default function Dashboard() {
             onClick={() => router.push("/cek-status")}
           />
           <DashboardCard
-            title="⬅️ Kembali"
-            desc="Kembali ke halaman sebelumnya"
-            icon={ArrowLeftIcon}
-            color="gray"
-            onClick={() => router.back()}
+            title="📍 Alokasi Penempatan"
+            desc="Lihat bidang dan unit penempatan magang"
+            icon={MapIcon}
+            color="blue"
+            onClick={() => router.push("/alokasi-penempatan")}
           />
         </div>
-
-        {/* Recent Applications */}
-        {applications.length > 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-lg p-6"
-          >
-            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <ClipboardDocumentListIcon className="w-5 h-5 text-blue-600" />
-              Riwayat Pendaftaran
-            </h3>
-            <div className="space-y-3">
-              {applications.slice(0, 3).map((app) => (
-                <motion.div
-                  key={app.id}
-                  whileHover={{ x: 4 }}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
-                  onClick={() => router.push("/cek-status")}
-                >
-                  <div>
-                    <span className="text-sm font-medium text-gray-800">
-                      {app.nama || `Formulir #${app.id.slice(0, 8)}`}
-                    </span>
-                    <p className="text-xs text-gray-500">
-                      {new Date(app.created_at).toLocaleDateString("id-ID")}
-                    </p>
-                  </div>
-                  <StatusBadge status={app.status} />
-                </motion.div>
-              ))}
-            </div>
-            {applications.length > 3 && (
-              <button
-                onClick={() => router.push("/cek-status")}
-                className="w-full mt-4 text-blue-600 text-sm font-medium hover:underline"
-              >
-                Lihat semua ({applications.length})
-              </button>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-8 text-center max-w-md mx-auto"
-          >
-            <SparklesIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="font-bold text-gray-800 text-lg">Belum Ada Pendaftaran</h3>
-            <p className="text-gray-600 text-sm mt-2 mb-4">
-              Ayo mulai proses magang Anda sekarang! Isi formulir dalam 5 menit.
-            </p>
-            <button
-              onClick={() => router.push("/pendaftaran")}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-            >
-              Mulai Sekarang →
-            </button>
-          </motion.div>
-        )}
 
         {/* Info Footer */}
         <div className="text-center mt-8 p-6 bg-white/60 backdrop-blur-sm border border-blue-100 rounded-2xl shadow-md max-w-2xl mx-auto">
@@ -389,7 +337,7 @@ function DashboardCard({
   );
 }
 
-// StatusBadge - Diperbarui untuk mendukung 'pending'
+// StatusBadge
 function StatusBadge({ status }: { status: string }) {
   const colors = {
     draft: "bg-yellow-100 text-yellow-800",
