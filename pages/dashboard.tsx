@@ -13,95 +13,73 @@ import {
   ClipboardDocumentListIcon,
   SparklesIcon,
   ArrowRightIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
 
-// Gunakan tipe dari Supabase
-import { User as SupabaseUser } from "@supabase/supabase-js";
-
 interface Application {
   id: string;
-  status: "draft" | "submitted" | "review" | "accepted" | "rejected" | "pending";
+  status: "pending" | "accepted" | "rejected";
   created_at: string;
-  nama_lengkap?: string;
+  nama?: string;
 }
 
 export default function Dashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, draft: 0, submitted: 0, accepted: 0 });
+  const [stats, setStats] = useState({
+    total: 0,
+    draft: 0,
+    pending: 0,
+    review: 0,
+    accepted: 0,
+    rejected: 0,
+  });
   const [applications, setApplications] = useState<Application[]>([]);
   const [nextAction, setNextAction] = useState<{ title: string; desc: string; action: () => void } | null>(null);
-  const [profile, setProfile] = useState<{ nama_lengkap: string } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-      if (!currentUser) {
-        router.push("/login");
-        return;
-      }
-
-      setUser(currentUser);
-
-      // Ambil nama lengkap dari tabel profil
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("nama_lengkap")
-        .eq("id", currentUser.id)
-        .single();
-
-      setProfile(profileData || null);
-
-      // Ambil data pendaftaran
+      // Fetch semua pendaftaran tanpa filter user_id
       const { data: apps, error } = await supabase
         .from("pendaftaran_magang")
-        .select("id, status, created_at, nama_lengkap")
-        .eq("user_id", currentUser.id);
+        .select("id, status, created_at, nama");
 
       if (error) {
         console.error("Error fetching applications:", error);
       }
 
-      if (!error && apps) {
-        console.log("Fetched applications:", apps);
-        console.log("Application statuses:", apps.map(app => ({ id: app.id, status: app.status })));
-        
+      if (apps) {
         setApplications(apps);
 
-        const draft = apps.filter((a) => a.status === "draft").length;
-        const submitted = apps.filter((a) =>
-          ["pending", "accepted", "rejected"].includes(a.status)
-        ).length;
-        const accepted = apps.filter((a) => a.status === "accepted").length;
+        // Hitung stats (normalisasi status ke lowercase)
+        const pending = apps.filter(a => a.status?.toLowerCase() === "pending").length;
+        const accepted = apps.filter(a => a.status?.toLowerCase() === "accepted").length;
+        const rejected = apps.filter(a => a.status?.toLowerCase() === "rejected").length;
 
-        console.log("Calculated stats:", { total: apps.length, draft, submitted, accepted });
-        
-        setStats({ total: apps.length, draft, submitted, accepted });
+        setStats({
+          total: apps.length,
+          draft: 0,
+          review: 0,
+          pending,
+          accepted,
+          rejected,
+        });
 
         // Tentukan aksi berikutnya
-        if (draft > 0) {
-          setNextAction({
-            title: "Lanjutkan Pendaftaran",
-            desc: "Anda memiliki formulir yang belum selesai",
-            action: () => router.push("/pendaftaran"),
-          });
-        } else if (submitted > 0) {
+        if (pending > 0) {
           setNextAction({
             title: "Status Sedang Diproses",
-            desc: "Tim kami sedang meninjau pendaftaran Anda",
+            desc: "Tim kami sedang meninjau pendaftaran",
             action: () => router.push("/cek-status"),
           });
         } else if (accepted > 0) {
           setNextAction({
-            title: "🎉 Selamat! Anda Diterima",
-            desc: "Silakan cek email untuk instruksi selanjutnya",
+            title: "🎉 Selamat! Ada Pendaftaran Diterima",
+            desc: "Silakan cek status terbaru",
             action: () => router.push("/cek-status"),
           });
-        } else if (apps.length > 0) {
-          // Misalnya semua ditolak
+        } else if (rejected > 0) {
           setNextAction({
             title: "📬 Hasil Telah Diumumkan",
             desc: "Silakan cek status terbaru",
@@ -145,8 +123,6 @@ export default function Dashboard() {
     );
   }
 
-  const displayName = profile?.nama_lengkap || user?.email?.split("@")[0] || "Pengguna";
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
@@ -182,15 +158,10 @@ export default function Dashboard() {
           </div>
 
           <h2 className="text-3xl font-bold text-gray-800 mb-3 leading-tight z-10 relative">
-            Halo,{" "}
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent font-extrabold">
-              {displayName}
-            </span>
-            !
+            Halo, <span className="bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent font-extrabold">Peserta</span>!
           </h2>
           <p className="text-gray-600 text-base leading-relaxed max-w-lg mx-auto mb-6 z-10 relative">
-            Anda berada di pusat kendali pendaftaran magang <strong className="text-blue-900">BBSPJIT</strong>. 
-            Pantau progres Anda dan lanjutkan kapan saja.
+            Anda berada di pusat kendali pendaftaran magang <strong className="text-blue-900">BBSPJIT</strong>. Pantau progres Anda dan lanjutkan kapan saja.
           </p>
 
           {/* Next Action */}
@@ -211,11 +182,13 @@ export default function Dashboard() {
           )}
 
           {/* Stats */}
-          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 max-w-4xl mx-auto">
             <StatCard icon={DocumentTextIcon} label="Total" value={stats.total} color="blue" pulse={stats.total > 0} />
             <StatCard icon={ClipboardDocumentListIcon} label="Draf" value={stats.draft} color="yellow" pulse={stats.draft > 0} />
-            <StatCard icon={ClockIcon} label="Ditinjau" value={stats.submitted} color="green" pulse={stats.submitted > 0} />
-            <StatCard icon={CheckCircleIcon} label="Diterima" value={stats.accepted} color="purple" pulse={stats.accepted > 0} />
+            <StatCard icon={ClockIcon} label="Pending" value={stats.pending} color="orange" pulse={stats.pending > 0} />
+            <StatCard icon={ClockIcon} label="Review" value={stats.review} color="indigo" pulse={stats.review > 0} />
+            <StatCard icon={CheckCircleIcon} label="Diterima" value={stats.accepted} color="green" pulse={stats.accepted > 0} />
+            <StatCard icon={XCircleIcon} label="Ditolak" value={stats.rejected} color="red" pulse={stats.rejected > 0} />
           </div>
         </motion.div>
 
@@ -266,7 +239,7 @@ export default function Dashboard() {
                 >
                   <div>
                     <span className="text-sm font-medium text-gray-800">
-                      {app.nama_lengkap || `Formulir #${app.id.slice(0, 8)}`}
+                      {app.nama || `Formulir #${app.id.slice(0, 8)}`}
                     </span>
                     <p className="text-xs text-gray-500">
                       {new Date(app.created_at).toLocaleDateString("id-ID")}
@@ -308,8 +281,7 @@ export default function Dashboard() {
         {/* Info Footer */}
         <div className="text-center mt-8 p-6 bg-white/60 backdrop-blur-sm border border-blue-100 rounded-2xl shadow-md max-w-2xl mx-auto">
           <p className="text-sm text-gray-600 leading-relaxed">
-            Sistem pendaftaran magang resmi oleh{" "}
-            <span className="font-semibold text-blue-900">BBSPJIT</span>.<br />
+            Sistem pendaftaran magang resmi oleh <span className="font-semibold text-blue-900">BBSPJIT</span>.<br />
             Semua data pribadi dilindungi dengan enkripsi tingkat tinggi dan hanya digunakan untuk proses seleksi.
           </p>
           <div className="mt-4 flex justify-center space-x-3 text-xs text-gray-400">
@@ -324,14 +296,13 @@ export default function Dashboard() {
 
       {/* Footer */}
       <footer className="text-center py-6 text-xs text-gray-400 bg-white/50 backdrop-blur-sm border-t border-gray-100">
-        &copy; {new Date().getFullYear()}{" "}
-        <span className="font-semibold text-blue-800">BBSPJIT</span>. Hak Cipta Dilindungi.
+        &copy; {new Date().getFullYear()} <span className="font-semibold text-blue-800">BBSPJIT</span>. Hak Cipta Dilindungi.
       </footer>
     </div>
   );
 }
 
-// StatCard: Gunakan React.ComponentType untuk ikon
+// StatCard
 function StatCard({
   icon: Icon,
   label,
@@ -342,7 +313,7 @@ function StatCard({
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: number;
-  color: "blue" | "green" | "yellow" | "purple";
+  color: "blue" | "green" | "yellow" | "purple" | "orange" | "indigo" | "red";
   pulse?: boolean;
 }) {
   const colorClasses = {
@@ -350,6 +321,9 @@ function StatCard({
     green: "text-green-600 bg-green-50",
     yellow: "text-yellow-600 bg-yellow-50",
     purple: "text-purple-600 bg-purple-50",
+    orange: "text-orange-600 bg-orange-50",
+    indigo: "text-indigo-600 bg-indigo-50",
+    red: "text-red-600 bg-red-50",
   };
 
   return (
