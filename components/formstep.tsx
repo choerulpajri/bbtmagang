@@ -71,7 +71,6 @@ export default function FormStep({ selectedDates, onBack, userData, unitKerja }:
     formData.append("nama_sekolah_universitas", userData.nama_sekolah_universitas);
     formData.append("jurusan", userData.jurusan);
     formData.append("no_hp", noHp);
-    formData.append("nomor_induk", nomorInduk);
     formData.append("unit_kerja", unitKerja);
     formData.append("file", file);
     formData.append("tanggal_start", selectedDates.start.toISOString());
@@ -92,7 +91,6 @@ export default function FormStep({ selectedDates, onBack, userData, unitKerja }:
       } else {
         setMessage("✅ Pendaftaran berhasil! Terima kasih telah mendaftar.");
         setNoHp("");
-        setNomorInduk("");
         setFile(null);
       }
     } catch (err) {
@@ -163,19 +161,6 @@ export default function FormStep({ selectedDates, onBack, userData, unitKerja }:
             value={userData.nama_sekolah_universitas}
             readOnly
             className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-800 cursor-not-allowed"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nomor Induk Mahasiswa/Siswa <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={nomorInduk}
-            onChange={(e) => setNomorInduk(e.target.value)}
-            placeholder="Masukkan nomor induk Anda"
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
           />
         </div>
 
